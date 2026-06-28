@@ -1,0 +1,5 @@
+# VoxCPM2 本地配音 · 独立运行时包依赖(装进运行时包自己的 PBS 解释器,不进主程序)
+# torch 不钉版本 → 取对应平台官方 wheel(mac arm = MPS;win = CUDA,另行指定 index)
+torch
+voxcpm==2.0.3
+soundfile

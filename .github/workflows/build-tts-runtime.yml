@@ -1,0 +1,38 @@
+name: build-tts-runtime
+
+# 手动触发:在 Actions 页选模型 id,自动构建对应运行环境包并发布到 Releases。
+on:
+  workflow_dispatch:
+    inputs:
+      model_id:
+        description: "模型 id(对应 tts_runtimes/<id>.requirements.txt)"
+        required: true
+        default: local_voxcpm2
+
+permissions:
+  contents: write   # 发布 Release 资源需要
+
+jobs:
+  mac-arm64:
+    runs-on: macos-14   # GitHub 托管的 Apple Silicon(arm64)runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 uv(python-build-standalone 来源)
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: 构建运行时包
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash build_tts_runtime.sh "${{ github.event.inputs.model_id }}" "$GITHUB_WORKSPACE/dist"
+          ls -lh "$GITHUB_WORKSPACE/dist"
+
+      - name: 发布到 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.event.inputs.model_id }}-mac-arm64"
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --title "$TAG" \
+              --notes "Lulu 本地 TTS 运行环境包($TAG),由 CI 自动构建。模型权重不含在内,由应用从官方下载。"
+          gh release upload "$TAG" dist/*.tar.gz dist/*.manifest.json --clobber
