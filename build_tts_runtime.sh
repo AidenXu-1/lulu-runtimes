@@ -48,15 +48,30 @@ PY="$STAGE/python/bin/python${PYVER}"
 echo "  装依赖(可能数分钟,pip 缓存命中会快)…"
 "$PY" -m pip install --no-compile --disable-pip-version-check -q -r "$REQ"
 
-# 3) 自检:能 import 关键模块(失败即不出包)
-"$PY" -I -s -c "import torch,voxcpm,soundfile; print('  自检 OK · torch',torch.__version__,'· mps',torch.backends.mps.is_available())"
+# 2b) 可选 vendor 钩子:有些模型不可 pip(如 GPT-SoVITS),需带源码 + 额外离线资产。
+#     钩子见 tts_runtimes/<id>.vendor.sh,环境变量 STAGE / PY 传给它。
+VENDOR_HOOK="$HERE/tts_runtimes/${MODEL_ID}.vendor.sh"
+if [ -f "$VENDOR_HOOK" ]; then
+  echo "  跑 vendor 钩子:$(basename "$VENDOR_HOOK")"
+  STAGE="$STAGE" PY="$PY" bash "$VENDOR_HOOK"
+fi
 
-# 4) 打包(tar 保真符号链接)+ manifest(sha256 / size)
+# 3) 自检:能 import 关键模块(失败即不出包)。优先 tts_runtimes/<id>.selftest.py(用运行时解释器跑)。
+SELFTEST="$HERE/tts_runtimes/${MODEL_ID}.selftest.py"
+if [ -f "$SELFTEST" ]; then
+  STAGE="$STAGE" "$PY" -I -s "$SELFTEST"
+else
+  "$PY" -I -s -c "import torch; print('  自检 OK · torch',torch.__version__,'· mps',torch.backends.mps.is_available())"
+fi
+
+# 4) 打包(tar 保真符号链接)+ manifest(sha256 / size)。有 vendor 则一并打包。
 mkdir -p "$OUT_DIR"
 VER="$(date +%Y%m%d)"
 PKG="$OUT_DIR/LuluTTSRuntime-${MODEL_ID}-${OS}-${ARCH}-${VER}.tar.gz"
 echo "  打包 → $PKG"
-tar -C "$STAGE" -czf "$PKG" python
+PKG_DIRS=(python)
+[ -d "$STAGE/vendor" ] && PKG_DIRS+=(vendor)
+tar -C "$STAGE" -czf "$PKG" "${PKG_DIRS[@]}"
 SHA="$(shasum -a 256 "$PKG" | awk '{print $1}')"
 SIZE="$(stat -f%z "$PKG")"
 cat > "$OUT_DIR/${MODEL_ID}-${OS}-${ARCH}.manifest.json" <<JSON

@@ -1,0 +1,44 @@
+# GPT-SoVITS 本地配音 · 独立运行时包依赖(装进运行时包自己的 PBS 解释器,不进主程序)
+# 由 2026-06-29 隔离 spike 实证可装 + 端到端生成(见 docs/spec/gptsovits-integration.md)。
+# 相对官方 requirements.txt 裁剪为「中文(+夹英文)推理」最小集:
+#   去掉 gradio/fastapi(webui)、funasr/faster-whisper/ctranslate2(ASR)、
+#        pyopenjtalk(日)、g2pk2/ko_pron/python_mecab_ko(韩)、ToJyutping(粤)、
+#        tensorboard/av/modelscope(非中文推理必需)。
+#   保留中文 + 英文混读链路(中文里夹 "AI" 之类会走英文 G2P)。
+#
+# 关键 pin:torch/torchaudio==2.8.0 —— >=2.9 的 torchaudio.load 改走 torchcodec(需系统 FFmpeg,
+#   破坏运行时包自包含);2.8 仍用 soundfile 后端。opencc 用 wheel(官方 --no-binary 是保守做法,
+#   mac arm64 有 wheel,无需源码编译)。
+numpy<2.0
+scipy
+librosa==0.10.2
+numba
+torch==2.8.0
+torchaudio==2.8.0
+transformers>=4.43,<=4.50
+peft<0.18.0
+pytorch-lightning>=2.4
+torchmetrics<=1.5
+x_transformers
+rotary_embedding_torch
+einops
+cn2an
+pypinyin
+jieba
+jieba_fast
+split-lang
+fast_langdetect>=0.3.1
+opencc
+onnxruntime
+sentencepiece
+huggingface_hub
+PyYAML
+chardet
+psutil
+ffmpeg-python
+soundfile
+pydantic<=2.10.6
+tqdm
+matplotlib
+wordsegment
+g2p_en
